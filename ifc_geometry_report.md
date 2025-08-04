@@ -1,8 +1,8 @@
-# Подробный отчет по построению геометрии IFC в IfcOpenShell
+# Подробный отчет по построению геометрии IFC в IfcOpenShell (C++)
 
 ## Введение
 
-IfcOpenShell предоставляет мощный API для работы с геометрией IFC моделей. Основным инструментом для построения геометрии является **геометрический итератор** (Geometry Iterator), который обеспечивает эффективную обработку геометрии с поддержкой многопоточности, кэширования и повторного использования.
+IfcOpenShell предоставляет мощный C++ API для работы с геометрией IFC моделей. Основным инструментом для построения геометрии является **геометрический итератор** (Geometry Iterator), который обеспечивает эффективную обработку геометрии с поддержкой многопоточности, кэширования и повторного использования.
 
 ## 1. Геометрический итератор (Geometry Iterator)
 
@@ -17,7 +17,6 @@ IfcOpenShell предоставляет мощный API для работы с 
 
 ### 1.2 Базовое использование
 
-#### В C++:
 ```cpp
 #include <ifcopenshell/ifcopenshell.h>
 #include <ifcopenshell/IfcGeom.h>
@@ -37,37 +36,18 @@ for (auto& item : geom_iterator) {
 }
 ```
 
-#### В Python:
-```python
-import ifcopenshell
-import ifcopenshell.geom
-
-# Создание настроек
-settings = ifcopenshell.geom.settings()
-settings.set("apply-default-materials", True)
-
-# Создание итератора
-iterator = ifcopenshell.geom.iterator(settings, ifc_file, num_threads=4)
-
-# Итерация по геометрии
-for item in iterator:
-    # Обработка каждого элемента геометрии
-    shape = item.processing_result()
-    # ...
-```
-
 ## 2. Настройки итератора (Iterator Settings)
 
 ### 2.1 Настройки экземпляра итератора
 
 #### exclude
-- **Тип**: LIST OF OBJ
+- **Тип**: `std::vector<IfcParse::IfcEntityInstanceData*>`
 - **Опция IfcConvert**: `--exclude` и `--exclude+`
 - **По умолчанию**: NULL
 - **Описание**: Исключает указанные геометрии из обработки. Взаимоисключающий с include.
 
 #### include
-- **Тип**: LIST OF OBJ
+- **Тип**: `std::vector<IfcParse::IfcEntityInstanceData*>`
 - **Опция IfcConvert**: `--include` и `--include+`
 - **По умолчанию**: NULL
 - **Описание**: Обрабатывает только геометрию из включенных элементов.
@@ -91,7 +71,7 @@ IfcConvert model.ifc out.glb --include+=attribute Name "Level 1"
 ```
 
 #### num_threads
-- **Тип**: INT
+- **Тип**: `int`
 - **Опция IfcConvert**: `--threads` или `-j`
 - **По умолчанию**: 1
 - **Описание**: Количество параллельных потоков для обработки геометрии.
@@ -99,308 +79,460 @@ IfcConvert model.ifc out.glb --include+=attribute Name "Level 1"
 ### 2.2 Настройки итератора
 
 #### angle_unit
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--angle-unit`
-- **По умолчанию**: 1
+- **По умолчанию**: 1.0
 - **Описание**: Переопределяет единицу измерения угла, определенную в IFC.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::ANGLE_UNIT, 1.0);
+```
+
 #### apply-default-materials
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--apply-default-materials`
-- **По умолчанию**: True
+- **По умолчанию**: true
 - **Описание**: Применяет материалы по умолчанию к элементам без назначенных материалов.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::APPLY_DEFAULT_MATERIALS, true);
+```
+
 #### boolean-attempt-2d
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--boolean-attempt-2d`
-- **По умолчанию**: True
+- **По умолчанию**: true
 - **Описание**: Пытается выполнить булевы вычитания в 2D. Может ускорить обработку в 2-3 раза.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::BOOLEAN_ATTEMPT_2D, true);
+```
+
 #### building-local-placement
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--building-local-placement`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Не включает ObjectPlacement здания и выше в размещение элементов.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::BUILDING_LOCAL_PLACEMENT, false);
+```
+
 #### circle-segments
-- **Тип**: INT
+- **Тип**: `int`
 - **Опция IfcConvert**: `--circle-segments`
 - **По умолчанию**: 16
 - **Описание**: Количество сегментов для аппроксимации полных окружностей в ядре CGAL.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::CIRCLE_SEGMENTS, 16);
+```
+
 #### context-identifiers
-- **Тип**: LIST OF STRING
+- **Тип**: `std::vector<std::string>`
 - **Опция IfcConvert**: N/A
 - **По умолчанию**: NULL
 - **Описание**: Указывает конкретные контексты представления для обработки.
 
-```python
-settings = ifcopenshell.geom.settings()
-settings.set("context-identifiers", ["Body", "Axis"])
+```cpp
+std::vector<std::string> context_ids = {"Body", "Axis"};
+settings.set_context_identifiers(context_ids);
 ```
 
 #### context-ids
-- **Тип**: LIST OF INT
+- **Тип**: `std::vector<int>`
 - **Опция IfcConvert**: N/A
 - **По умолчанию**: NULL
 - **Описание**: Указывает ID контекстов представления для обработки.
 
+```cpp
+std::vector<int> context_ids = {1, 2, 3};
+settings.set_context_ids(context_ids);
+```
+
 #### context-types
-- **Тип**: LIST OF STRING
+- **Тип**: `std::vector<std::string>`
 - **Опция IfcConvert**: N/A
 - **По умолчанию**: NULL
 - **Описание**: Указывает типы контекстов представления для обработки.
 
-```python
-settings = ifcopenshell.geom.settings()
-settings.set("context-types", ["Plan"])
+```cpp
+std::vector<std::string> context_types = {"Plan"};
+settings.set_context_types(context_types);
 ```
 
 #### convert-back-units
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--convert-back-units`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Восстанавливает координаты после конвертации, умножая на коэффициент единицы измерения.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::CONVERT_BACK_UNITS, false);
+```
+
 #### debug
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--debug`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Записывает булевы операнды в файл для отладки.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::DEBUG, false);
+```
+
 #### dimensionality
-- **Тип**: BOOL
+- **Тип**: `int`
 - **Опция IfcConvert**: `--dimensionality`
 - **По умолчанию**: 1
 - **Описание**: Контролирует типы геометрии для обработки.
 
-```python
-settings = ifcopenshell.geom.settings()
-settings.set("dimensionality", ifcopenshell.ifcopenshell_wrapper.CURVES)  # 0
-settings.set("dimensionality", ifcopenshell.ifcopenshell_wrapper.SURFACES_AND_SOLIDS)  # 1, default
-settings.set("dimensionality", ifcopenshell.ifcopenshell_wrapper.CURVES_SURFACES_AND_SOLIDS)  # 2
+```cpp
+settings.set(IfcGeom::IteratorSettings::DIMENSIONALITY, IfcGeom::IteratorSettings::SURFACES_AND_SOLIDS);
+// Доступные значения:
+// IfcGeom::IteratorSettings::CURVES = 0
+// IfcGeom::IteratorSettings::SURFACES_AND_SOLIDS = 1 (default)
+// IfcGeom::IteratorSettings::CURVES_SURFACES_AND_SOLIDS = 2
 ```
 
 #### disable-boolean-result
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--disable-boolean-result`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Отключает вычисление IfcBooleanResult и возвращает только FirstOperand.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::DISABLE_BOOLEAN_RESULT, false);
+```
+
 #### disable-opening-subtractions
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--disable-opening-subtractions`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Отключает вычитание геометрии проемов из хост-элементов.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::DISABLE_OPENING_SUBTRACTIONS, false);
+```
+
 #### edge-arrows
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--edge-arrows`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Добавляет стрелки к ребрам для указания направления кривых.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::EDGE_ARROWS, false);
+```
+
 #### element-hierarchy
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--element-hierarchy`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Выводит относительные размещения вместо абсолютных (только для Collada .DAE).
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::ELEMENT_HIERARCHY, false);
+```
+
 #### enable-layerset-slicing
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--enable-layerset-slicing`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Создает поверхности для сегментации геометрии на основе IfcMaterialLayerSet.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::ENABLE_LAYERSET_SLICING, false);
+```
+
 #### force-space-transparency
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--force-space-transparency`
-- **По умолчанию**: 0
+- **По умолчанию**: 0.0
 - **Описание**: Переопределяет прозрачность пространств в геометрическом выводе.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::FORCE_SPACE_TRANSPARENCY, 0.0);
+```
+
 #### function-step-param
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--function-step-param`
 - **По умолчанию**: 0.5
 - **Описание**: Параметр для определения размера шага при вычислении кривых на основе функций.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::FUNCTION_STEP_PARAM, 0.5);
+```
+
 #### function-step-type
-- **Тип**: INT
+- **Тип**: `int`
 - **Опция IfcConvert**: `--function-step-type`
 - **По умолчанию**: 0
 - **Описание**: Метод определения размера шага для кривых на основе функций.
 
-```python
-settings = ifcopenshell.geom.settings()
-settings.set("function-step-type", ifcopenshell.ifcopenshell_wrapper.MAXSTEPSIZE)  # 0
-settings.set("function-step-type", ifcopenshell.ifcopenshell_wrapper.MINSTEPS)  # 1
+```cpp
+settings.set(IfcGeom::IteratorSettings::FUNCTION_STEP_TYPE, IfcGeom::IteratorSettings::MAXSTEPSIZE);
+// Доступные значения:
+// IfcGeom::IteratorSettings::MAXSTEPSIZE = 0
+// IfcGeom::IteratorSettings::MINSTEPS = 1
 ```
 
 #### generate-uvs
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--generate-uvs`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Применяет проекцию коробки для получения UV координат.
+
+```cpp
+settings.set(IfcGeom::IteratorSettings::GENERATE_UVS, false);
+```
 
 #### iterator-output
 - **Описание**: Контролирует тип вывода итератора.
 
-```python
-settings = ifcopenshell.geom.settings()
-# Нативная OCC репрезентация
-settings.set("iterator-output", ifcopenshell.ifcopenshell_wrapper.NATIVE)
-# Сериализованная OCC репрезентация
-settings.set("iterator-output", ifcopenshell.ifcopenshell_wrapper.SERIALIZED)
+```cpp
+settings.set(IfcGeom::IteratorSettings::ITERATOR_OUTPUT, IfcGeom::IteratorSettings::NATIVE);
+// Доступные значения:
+// IfcGeom::IteratorSettings::NATIVE - нативная OCC репрезентация
+// IfcGeom::IteratorSettings::SERIALIZED - сериализованная OCC репрезентация
 ```
 
 #### keep-bounding-boxes
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--keep-bounding-boxes`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Сохраняет IfcBoundingBox в модели перед конвертацией геометрии.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::KEEP_BOUNDING_BOXES, false);
+```
+
 #### layerset-first
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--layerset-first`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Использует первый слой материала из набора как материал для всего элемента.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::LAYERSET_FIRST, false);
+```
+
 #### length-unit
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--length-unit`
-- **По умолчанию**: 1
+- **По умолчанию**: 1.0
 - **Описание**: Переопределяет единицу длины, определенную в IFC, как множитель метров.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::LENGTH_UNIT, 1.0);
+```
+
 #### mesher-angular-deflection
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--mesher-angular-deflection`
 - **По умолчанию**: 0.5
 - **Описание**: Устанавливает угловую толерантность мешера в радианах.
 
+```cpp
+settings.set_angular_tolerance(0.5);
+```
+
 #### mesher-linear-deflection
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--mesher-linear-deflection`
 - **По умолчанию**: 1e-3
 - **Описание**: Устанавливает толерантность отклонения мешера.
 
+```cpp
+settings.set_deflection_tolerance(1e-3);
+```
+
 #### model-offset
-- **Тип**: ARRAY<DOUBLE>
+- **Тип**: `std::array<double, 3>`
 - **Опция IfcConvert**: `--model-offset`
-- **По умолчанию**: 0,0,0
+- **По умолчанию**: {0.0, 0.0, 0.0}
 - **Описание**: Устанавливает смещение для всех матриц геометрии.
 
-```python
-settings = ifcopenshell.geom.settings()
-settings.set("model-offset", (1.0, 2.0, 3.0))
+```cpp
+std::array<double, 3> offset = {1.0, 2.0, 3.0};
+settings.set(IfcGeom::IteratorSettings::MODEL_OFFSET, offset);
 ```
 
 #### model-rotation
-- **Тип**: ARRAY<DOUBLE>
+- **Тип**: `std::array<double, 4>`
 - **Опция IfcConvert**: `--model-rotation`
-- **По умолчанию**: 0,0,0,0
+- **По умолчанию**: {0.0, 0.0, 0.0, 0.0}
 - **Описание**: Применяет произвольное кватернионное вращение формы 'x,y,z,w' ко всем размещениям.
 
+```cpp
+std::array<double, 4> rotation = {0.0, 0.0, 0.0, 1.0};
+settings.set(IfcGeom::IteratorSettings::MODEL_ROTATION, rotation);
+```
+
 #### no-normals
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--no-normals`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Не выводит нормали в геометрическом выводе. Экономит время и размер файла.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::NO_NORMALS, false);
+```
+
 #### no-parallel-mapping
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--no-parallel-mapping`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Выполняет маппинг заранее (однопоточный) вместо параллельного.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::NO_PARALLEL_MAPPING, false);
+```
+
 #### no-wire-intersection-check
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--no-wire-intersection-check`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Отключает проверки пересечения проволок.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::NO_WIRE_INTERSECTION_CHECK, false);
+```
+
 #### no-wire-intersection-tolerance
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--no-wire-intersection-tolerance`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Устанавливает толерантность пересечения проволок в 0.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::NO_WIRE_INTERSECTION_TOLERANCE, false);
+```
+
 #### precision
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--precision`
-- **По умолчанию**: 0
+- **По умолчанию**: 0.0
 - **Описание**: Устанавливает пользовательскую точность вместо точности IFC модели.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::PRECISION, 1e-6);
+```
+
 #### precision-factor
-- **Тип**: DOUBLE
+- **Тип**: `double`
 - **Опция IfcConvert**: `--precision-factor`
-- **По умолчанию**: 0
+- **По умолчанию**: 0.0
 - **Описание**: Увеличивает линейную толерантность для более разрешительных кривых.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::PRECISION_FACTOR, 10.0);
+```
+
 #### reorient-shells
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--reorient-shells`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Переориентирует или сшивает связанные наборы граней для согласованной внешней ориентации.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::REORIENT_SHELLS, false);
+```
+
 #### site-local-placement
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--site-local-placement`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Исключает ObjectPlacement участка из размещения элементов.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::SITE_LOCAL_PLACEMENT, false);
+```
+
 #### surface-colour
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--surface-colour`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Приоритизирует цвет поверхности вместо диффузного.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::SURFACE_COLOUR, false);
+```
+
 #### triangulation-type
-- **Тип**: INT
+- **Тип**: `int`
 - **Опция IfcConvert**: `--triangulation-type`
 - **По умолчанию**: 0
 - **Описание**: Тип плоской грани для вывода.
 
-```python
-settings = ifcopenshell.geom.settings()
-settings.set("triangulation-type", ifcopenshell.ifcopenshell_wrapper.TRIANGLE_MESH)  # 0
-settings.set("triangulation-type", ifcopenshell.ifcopenshell_wrapper.POLYHEDRON_WITHOUT_HOLES)  # 1
-settings.set("triangulation-type", ifcopenshell.ifcopenshell_wrapper.POLYHEDRON_WITH_HOLES)  # 2
+```cpp
+settings.set(IfcGeom::IteratorSettings::TRIANGULATION_TYPE, IfcGeom::IteratorSettings::TRIANGLE_MESH);
+// Доступные значения:
+// IfcGeom::IteratorSettings::TRIANGLE_MESH = 0
+// IfcGeom::IteratorSettings::POLYHEDRON_WITHOUT_HOLES = 1
+// IfcGeom::IteratorSettings::POLYHEDRON_WITH_HOLES = 2
 ```
 
 #### unify-shapes
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--unify-shapes`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Объединяет смежные копланарные и коллинеарные подформы перед триангуляцией.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::UNIFY_SHAPES, false);
+```
+
 #### use-material-names
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--use-material-names`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Использует имена материалов вместо уникальных ID для именования материалов.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::USE_MATERIAL_NAMES, false);
+```
+
 #### use-python-opencascade
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: N/A
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Использует Python OpenCASCADE для десериализации TopoDS_Shape.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::USE_PYTHON_OPENCASCADE, false);
+```
+
 #### use-world-coords
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--use-world-coords`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Применяет ObjectPlacement строительных элементов к геометрическому выводу.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::USE_WORLD_COORDS, false);
+```
+
 #### validate
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--validate`
-- **По умолчанию**: False
+- **По умолчанию**: false
 - **Описание**: Устанавливает ненулевой код выхода при ошибках валидации.
 
+```cpp
+settings.set(IfcGeom::IteratorSettings::VALIDATE, false);
+```
+
 #### weld-vertices
-- **Тип**: BOOL
+- **Тип**: `bool`
 - **Опция IfcConvert**: `--weld-vertices`
-- **По умолчанию**: False в IfcConvert, True в C++ и Python
+- **По умолчанию**: true в C++
 - **Описание**: Объединяет вершины только на основе позиции, отбрасывая нормали.
+
+```cpp
+settings.set(IfcGeom::IteratorSettings::WELD_VERTICES, true);
+```
 
 ## 3. Правильное использование итератора
 
@@ -414,68 +546,82 @@ settings.set("triangulation-type", ifcopenshell.ifcopenshell_wrapper.POLYHEDRON_
 ### 3.2 Примеры использования
 
 #### Обработка только стен:
-```python
-import ifcopenshell
-import ifcopenshell.geom
+```cpp
+#include <ifcopenshell/ifcopenshell.h>
+#include <ifcopenshell/IfcGeom.h>
+#include <vector>
 
-# Открытие файла
-ifc_file = ifcopenshell.open("model.ifc")
-
-# Создание настроек
-settings = ifcopenshell.geom.settings()
-settings.set("apply-default-materials", True)
-settings.set("dimensionality", ifcopenshell.ifcopenshell_wrapper.SURFACES_AND_SOLIDS)
-
-# Получение всех стен
-walls = ifc_file.by_type("IfcWall")
-
-# Создание итератора только для стен
-iterator = ifcopenshell.geom.iterator(
-    settings, 
-    ifc_file, 
-    include=walls,
-    num_threads=4
-)
-
-# Обработка геометрии
-for item in iterator:
-    shape = item.processing_result()
-    print(f"Обработан элемент: {item.guid}")
-    print(f"Количество вершин: {len(shape.geometry.verts)}")
-    print(f"Количество граней: {len(shape.geometry.faces)}")
+int main() {
+    // Открытие файла
+    IfcParse::IfcFile ifc_file("model.ifc");
+    
+    // Создание настроек
+    IfcGeom::IteratorSettings settings;
+    settings.set(IfcGeom::IteratorSettings::APPLY_DEFAULT_MATERIALS, true);
+    settings.set(IfcGeom::IteratorSettings::DIMENSIONALITY, 
+                 IfcGeom::IteratorSettings::SURFACES_AND_SOLIDS);
+    
+    // Получение всех стен
+    auto walls = ifc_file.instances_by_type("IfcWall");
+    std::vector<IfcParse::IfcEntityInstanceData*> wall_entities;
+    for (auto wall : walls) {
+        wall_entities.push_back(wall);
+    }
+    
+    // Создание итератора только для стен
+    IfcGeom::Iterator iterator(settings, ifc_file, wall_entities, 4);
+    
+    // Обработка геометрии
+    for (auto& item : iterator) {
+        auto shape = item.processing_result();
+        std::cout << "Обработан элемент: " << item.guid() << std::endl;
+        std::cout << "Количество вершин: " << shape.geometry().verts().size() << std::endl;
+        std::cout << "Количество граней: " << shape.geometry().faces().size() << std::endl;
+    }
+    
+    return 0;
+}
 ```
 
 #### Обработка с пользовательскими настройками:
-```python
-import ifcopenshell
-import ifcopenshell.geom
+```cpp
+#include <ifcopenshell/ifcopenshell.h>
+#include <ifcopenshell/IfcGeom.h>
 
-# Создание настроек
-settings = ifcopenshell.geom.settings()
-
-# Настройка точности
-settings.set("precision", 1e-6)
-settings.set("precision-factor", 10.0)
-
-# Настройка мешера
-settings.set("mesher-linear-deflection", 1e-3)
-settings.set("mesher-angular-deflection", 0.5)
-
-# Настройка материалов
-settings.set("apply-default-materials", True)
-settings.set("use-material-names", True)
-
-# Настройка геометрии
-settings.set("circle-segments", 32)
-settings.set("boolean-attempt-2d", True)
-
-# Создание итератора
-iterator = ifcopenshell.geom.iterator(settings, ifc_file, num_threads=8)
-
-# Обработка
-for item in iterator:
-    # Обработка каждого элемента
-    pass
+int main() {
+    IfcParse::IfcFile ifc_file("model.ifc");
+    
+    // Создание настроек
+    IfcGeom::IteratorSettings settings;
+    
+    // Настройка точности
+    settings.set(IfcGeom::IteratorSettings::PRECISION, 1e-6);
+    settings.set(IfcGeom::IteratorSettings::PRECISION_FACTOR, 10.0);
+    
+    // Настройка мешера
+    settings.set_deflection_tolerance(1e-3);
+    settings.set_angular_tolerance(0.5);
+    
+    // Настройка материалов
+    settings.set(IfcGeom::IteratorSettings::APPLY_DEFAULT_MATERIALS, true);
+    settings.set(IfcGeom::IteratorSettings::USE_MATERIAL_NAMES, true);
+    
+    // Настройка геометрии
+    settings.set(IfcGeom::IteratorSettings::CIRCLE_SEGMENTS, 32);
+    settings.set(IfcGeom::IteratorSettings::BOOLEAN_ATTEMPT_2D, true);
+    
+    // Создание итератора
+    IfcGeom::Iterator iterator(settings, ifc_file, {}, 8);
+    
+    // Обработка
+    for (auto& item : iterator) {
+        // Обработка каждого элемента
+        auto shape = item.processing_result();
+        // ...
+    }
+    
+    return 0;
+}
 ```
 
 ### 3.3 Оптимизация производительности
@@ -488,29 +634,201 @@ for item in iterator:
 
 ### 3.4 Обработка ошибок
 
-```python
-import ifcopenshell
-import ifcopenshell.geom
+```cpp
+#include <ifcopenshell/ifcopenshell.h>
+#include <ifcopenshell/IfcGeom.h>
+#include <iostream>
+#include <exception>
 
-try:
-    settings = ifcopenshell.geom.settings()
-    iterator = ifcopenshell.geom.iterator(settings, ifc_file)
+int main() {
+    try {
+        IfcParse::IfcFile ifc_file("model.ifc");
+        IfcGeom::IteratorSettings settings;
+        IfcGeom::Iterator iterator(settings, ifc_file);
+        
+        for (auto& item : iterator) {
+            try {
+                auto shape = item.processing_result();
+                // Обработка успешного результата
+            } catch (const std::exception& e) {
+                std::cerr << "Ошибка обработки элемента " << item.guid() 
+                          << ": " << e.what() << std::endl;
+                continue;
+            }
+        }
+    } catch (const std::exception& e) {
+        std::cerr << "Ошибка создания итератора: " << e.what() << std::endl;
+        return 1;
+    }
     
-    for item in iterator:
-        try:
-            shape = item.processing_result()
-            # Обработка успешного результата
-        except Exception as e:
-            print(f"Ошибка обработки элемента {item.guid}: {e}")
-            continue
-            
-except Exception as e:
-    print(f"Ошибка создания итератора: {e}")
+    return 0;
+}
 ```
 
-## 4. Заключение
+## 4. Структуры данных и классы
 
-Геометрический итератор IfcOpenShell предоставляет мощный и гибкий инструмент для работы с геометрией IFC моделей. Правильная настройка параметров и использование фильтров позволяет оптимизировать производительность и получить желаемый результат. Основные принципы:
+### 4.1 IfcGeom::IteratorSettings
+
+Основной класс для настройки параметров итератора:
+
+```cpp
+class IfcGeom::IteratorSettings {
+public:
+    // Методы настройки
+    void set(IteratorSettings::Setting setting, bool value);
+    void set(IteratorSettings::Setting setting, int value);
+    void set(IteratorSettings::Setting setting, double value);
+    void set(IteratorSettings::Setting setting, const std::string& value);
+    void set(IteratorSettings::Setting setting, const std::vector<std::string>& value);
+    void set(IteratorSettings::Setting setting, const std::vector<int>& value);
+    void set(IteratorSettings::Setting setting, const std::array<double, 3>& value);
+    void set(IteratorSettings::Setting setting, const std::array<double, 4>& value);
+    
+    // Специальные методы
+    void set_deflection_tolerance(double tolerance);
+    void set_angular_tolerance(double tolerance);
+    void set_context_identifiers(const std::vector<std::string>& identifiers);
+    void set_context_ids(const std::vector<int>& ids);
+    void set_context_types(const std::vector<std::string>& types);
+    
+    // Константы настроек
+    enum Setting {
+        APPLY_DEFAULT_MATERIALS,
+        BOOLEAN_ATTEMPT_2D,
+        BUILDING_LOCAL_PLACEMENT,
+        CIRCLE_SEGMENTS,
+        CONVERT_BACK_UNITS,
+        DEBUG,
+        DIMENSIONALITY,
+        DISABLE_BOOLEAN_RESULT,
+        DISABLE_OPENING_SUBTRACTIONS,
+        EDGE_ARROWS,
+        ELEMENT_HIERARCHY,
+        ENABLE_LAYERSET_SLICING,
+        FORCE_SPACE_TRANSPARENCY,
+        FUNCTION_STEP_PARAM,
+        FUNCTION_STEP_TYPE,
+        GENERATE_UVS,
+        ITERATOR_OUTPUT,
+        KEEP_BOUNDING_BOXES,
+        LAYERSET_FIRST,
+        LENGTH_UNIT,
+        MODEL_OFFSET,
+        MODEL_ROTATION,
+        NO_NORMALS,
+        NO_PARALLEL_MAPPING,
+        NO_WIRE_INTERSECTION_CHECK,
+        NO_WIRE_INTERSECTION_TOLERANCE,
+        PRECISION,
+        PRECISION_FACTOR,
+        REORIENT_SHELLS,
+        SITE_LOCAL_PLACEMENT,
+        SURFACE_COLOUR,
+        TRIANGULATION_TYPE,
+        UNIFY_SHAPES,
+        USE_MATERIAL_NAMES,
+        USE_PYTHON_OPENCASCADE,
+        USE_WORLD_COORDS,
+        VALIDATE,
+        WELD_VERTICES
+    };
+    
+    // Константы для значений
+    enum Dimensionality {
+        CURVES = 0,
+        SURFACES_AND_SOLIDS = 1,
+        CURVES_SURFACES_AND_SOLIDS = 2
+    };
+    
+    enum TriangulationType {
+        TRIANGLE_MESH = 0,
+        POLYHEDRON_WITHOUT_HOLES = 1,
+        POLYHEDRON_WITH_HOLES = 2
+    };
+    
+    enum IteratorOutput {
+        NATIVE = 0,
+        SERIALIZED = 1
+    };
+    
+    enum FunctionStepType {
+        MAXSTEPSIZE = 0,
+        MINSTEPS = 1
+    };
+};
+```
+
+### 4.2 IfcGeom::Iterator
+
+Основной класс итератора:
+
+```cpp
+class IfcGeom::Iterator {
+public:
+    // Конструкторы
+    Iterator(const IteratorSettings& settings, 
+             const IfcParse::IfcFile& file,
+             const std::vector<IfcParse::IfcEntityInstanceData*>& include = {},
+             int num_threads = 1);
+    
+    // Итерация
+    iterator begin();
+    iterator end();
+    
+    // Информация
+    size_t size() const;
+    bool empty() const;
+};
+```
+
+### 4.3 IfcGeom::Element
+
+Класс элемента геометрии:
+
+```cpp
+class IfcGeom::Element {
+public:
+    // Основная информация
+    std::string guid() const;
+    std::string name() const;
+    std::string type() const;
+    
+    // Геометрия
+    IfcGeom::ProcessingResult processing_result() const;
+    
+    // Материалы
+    std::vector<IfcGeom::Material> materials() const;
+    
+    // Трансформация
+    gp_Trsf transformation() const;
+};
+```
+
+### 4.4 IfcGeom::ProcessingResult
+
+Результат обработки геометрии:
+
+```cpp
+class IfcGeom::ProcessingResult {
+public:
+    // Геометрия
+    const IfcGeom::Geometry& geometry() const;
+    
+    // Материалы
+    const std::vector<IfcGeom::Material>& materials() const;
+    
+    // Трансформация
+    const gp_Trsf& transformation() const;
+    
+    // Статус
+    bool success() const;
+    std::string error_message() const;
+};
+```
+
+## 5. Заключение
+
+Геометрический итератор IfcOpenShell предоставляет мощный и гибкий инструмент для работы с геометрией IFC моделей в C++. Правильная настройка параметров и использование фильтров позволяет оптимизировать производительность и получить желаемый результат. Основные принципы:
 
 1. **Всегда настраивайте параметры** в соответствии с требованиями
 2. **Используйте фильтры** для оптимизации обработки
@@ -518,4 +836,4 @@ except Exception as e:
 4. **Обрабатывайте ошибки** для надежности
 5. **Тестируйте настройки** на небольших моделях перед обработкой больших файлов
 
-Данный отчет охватывает основные аспекты работы с геометрией IFC в IfcOpenShell и может служить руководством для разработчиков, работающих с данной библиотекой.
+Данный отчет охватывает основные аспекты работы с геометрией IFC в IfcOpenShell C++ API и может служить руководством для разработчиков, работающих с данной библиотекой.
